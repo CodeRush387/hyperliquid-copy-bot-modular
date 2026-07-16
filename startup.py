@@ -25,18 +25,73 @@ def startup_info(payload: dict[str, Any]) -> Any:
 
 
 def snapshot_portfolio(user: str) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
-    data = startup_info({"type": "clearinghouseState", "user": user})
+    """
+    Return authoritative positions from every perpetual DEX.
+
+    The empty dex name represents the default Hyperliquid perp DEX.
+    HIP-3 positions are returned by querying each deployed perp DEX.
+    Spot fills such as @107 are intentionally not treated as perp positions.
+    """
     positions: dict[str, Decimal] = {}
     capital: dict[str, Decimal] = {}
-    for item in data.get("assetPositions", []) or []:
-        position = item.get("position", {}) or {}
-        coin = str(position.get("coin", "")).strip()
-        size = dec(position.get("szi"))
-        entry_price = dec(position.get("entryPx"))
-        if coin and size != 0:
+
+    perp_dexes = startup_info({"type": "perpDexs"})
+
+    dex_names: list[str] = [""]
+
+    if isinstance(perp_dexes, list):
+        for dex in perp_dexes:
+            if not isinstance(dex, dict):
+                continue
+
+            dex_name = str(dex.get("name", "")).strip()
+            if dex_name and dex_name not in dex_names:
+                dex_names.append(dex_name)
+
+    for dex_name in dex_names:
+        payload = {
+            "type": "clearinghouseState",
+            "user": user,
+            "dex": dex_name,
+        }
+
+        data = startup_info(payload)
+
+        if not isinstance(data, dict):
+            log.warning(
+                "[AUTHORITATIVE_DEX_STATE_INVALID] "
+                "wallet=%s dex=%s response_type=%s",
+                user,
+                dex_name or "DEFAULT",
+                type(data).__name__,
+            )
+            continue
+
+        dex_position_count = 0
+
+        for item in data.get("assetPositions", []) or []:
+            position = item.get("position", {}) or {}
+
+            coin = str(position.get("coin", "")).strip()
+            size = dec(position.get("szi"))
+            entry_price = dec(position.get("entryPx"))
+
+            if not coin or size == ZERO:
+                continue
+
             positions[coin] = size
-            if entry_price > 0:
+            dex_position_count += 1
+
+            if entry_price > ZERO:
                 capital[coin] = abs(size) * entry_price
+
+        log.info(
+            "[AUTHORITATIVE_DEX_STATE] wallet=%s dex=%s positions=%s",
+            user,
+            dex_name or "DEFAULT",
+            dex_position_count,
+        )
+
     return positions, capital
 
 
@@ -73,4 +128,5 @@ def load_startup_state() -> None:
         len(follower_state.positions),
         EXECUTION_ENABLED,
     )
+
 

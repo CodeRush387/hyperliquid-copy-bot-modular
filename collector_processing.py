@@ -82,7 +82,13 @@ async def authoritative_reconcile(
 
     authoritative_position = positions.get(fill.coin, ZERO)
 
-    if ":" in fill.coin and authoritative_position == ZERO:
+    if (
+        authoritative_position == ZERO
+        and (
+            ":" in fill.coin
+            or fill.coin.startswith("@")
+        )
+    ):
         log.warning(
             "[AUTHORITATIVE_DEX_POSITION_UNAVAILABLE] "
             "wallet=%s asset=%s fill_start=%s fill_after=%s",
@@ -248,4 +254,5 @@ async def process_leader_fill(
     )
 
     await persist_state(wallet, state)
+
 
