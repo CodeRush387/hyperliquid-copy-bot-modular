@@ -4,7 +4,7 @@ from typing import Any
 
 import requests
 
-from config import EXECUTION_ENABLED, FOLLOWER, LEADERS, QUICKNODE_INFO_URL, log
+from config import EXECUTION_ENABLED, FOLLOWER, LEADERS, QUICKNODE_INFO_URL, ZERO, log
 from lifecycle import rebuild_wallet
 from models import Fill
 from state import follower_state, size_decimals, wallet_states
@@ -128,5 +128,6 @@ def load_startup_state() -> None:
         len(follower_state.positions),
         EXECUTION_ENABLED,
     )
+
 
 
