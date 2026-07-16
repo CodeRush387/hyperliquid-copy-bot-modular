@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.env
+*.log
+*.csv
+*.parquet
+.git/
+.gitignore
+README.md
+private_key*
+secret*
+config.json
+flight_recorder/
+test_hrs.py

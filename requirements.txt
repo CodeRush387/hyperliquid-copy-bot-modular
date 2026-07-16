@@ -1,0 +1,5 @@
+eth-account==0.13.7
+grpcio==1.82.1
+hyperliquid-python-sdk==0.24.0
+protobuf==7.35.1
+requests==2.32.5
