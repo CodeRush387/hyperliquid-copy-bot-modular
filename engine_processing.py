@@ -5,7 +5,8 @@ from config import ALLOCATION_GAP_PCT, EXECUTION_ENABLED, FOLLOWER, ZERO, log
 from engine_execution import execute_initial_entry, execute_rotation
 from engine_lifecycle import is_eligible, leaderboard, log_race, rebuild_wallet
 from models import Decision, Fill, FillKind, Lifecycle, LifecycleStatus, WalletState
-from state import follower_state, wallet_states
+from state import follower_state
+from engine_projection import require_persisted_wallet
 
 async def evaluate_wallet(state: WalletState, trigger: Fill) -> Decision:
     held_asset_before = state.held_asset
@@ -104,7 +105,7 @@ def update_snapshot_capital(state: WalletState, fill: Fill) -> None:
         )
 
 async def process_leader_fill(wallet: str, raw: dict[str, Any]) -> None:
-    state = wallet_states[wallet]
+    state = require_persisted_wallet(wallet)
     fill = Fill.from_raw(wallet, raw)
     if not fill.coin or fill.quantity <= ZERO or fill.price <= ZERO:
         log.warning(
@@ -178,3 +179,4 @@ async def observe_follower_fill(raw: dict[str, Any]) -> None:
         fill.after_position,
         fill.tid or "UNAVAILABLE",
     )
+

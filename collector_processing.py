@@ -4,6 +4,7 @@ from typing import Any
 from config import ZERO, log
 from lifecycle import rebuild_wallet
 from models import Fill, FillKind, Lifecycle, LifecycleStatus, WalletState
+from engine_projection import update as update_projection
 from persistence import save_current_state
 from state import wallet_states
 
@@ -81,4 +82,9 @@ async def process_leader_fill(wallet: str, raw: dict[str, Any]) -> None:
         state.snapshot_positions[fill.coin] = fill.after_position
 
     rebuild_wallet(state, startup=False, previous=previous_shares)
+    update_projection(fill, state)
     await asyncio.to_thread(save_current_state)
+
+
+
+

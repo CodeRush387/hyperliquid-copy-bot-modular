@@ -10,6 +10,7 @@ from collector_grpc import (
     stream_data_loop,
 )
 from config import GRPC_ENDPOINT, GRPC_SERVER_NAME, LEADERS, log
+from engine_projection import initialize as initialize_projection
 from persistence import initialize_state_store, save_current_state
 from startup import load_startup_state
 from state import grpc_ready
@@ -25,6 +26,7 @@ async def main() -> None:
         )
 
     initialize_state_store()
+    initialize_projection()
     log.info("============= ACTIVE LEADER WALLETS =============")
     for index, wallet in enumerate(LEADERS, start=1):
         log.info("%s. %s", index, wallet)
@@ -66,3 +68,8 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+
+
+
