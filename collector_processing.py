@@ -14,8 +14,11 @@ def update_snapshot_capital(state: WalletState, fill: Fill) -> None:
     prior_capital = state.snapshot_capital.get(fill.coin)
     if kind in {FillKind.OPEN, FillKind.REVERSAL}:
         state.snapshot_capital[fill.coin] = abs(fill.after_position) * fill.price
-    elif kind == FillKind.INCREASE and prior_capital is not None:
-        state.snapshot_capital[fill.coin] = prior_capital + fill.quantity * fill.price
+    elif kind == FillKind.INCREASE:
+        if prior_capital is not None:
+            state.snapshot_capital[fill.coin] = prior_capital + fill.quantity * fill.price
+        else:
+            state.snapshot_capital[fill.coin] = abs(fill.after_position) * fill.price
     elif (
         kind == FillKind.REDUCTION
         and prior_capital is not None
@@ -84,6 +87,7 @@ async def process_leader_fill(wallet: str, raw: dict[str, Any]) -> None:
     rebuild_wallet(state, startup=False, previous=previous_shares)
     update_projection(wallet, state)
     await asyncio.to_thread(save_current_state)
+
 
 
 
