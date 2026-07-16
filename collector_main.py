@@ -56,7 +56,9 @@ async def main() -> None:
 
     await asyncio.wait_for(grpc_ready.wait(), timeout=10)
 
-    await asyncio.sleep(5)`r`n`r`n    tasks.append(asyncio.create_task(event_consumer(), name="event-consumer"))
+    await asyncio.sleep(5)
+
+    tasks.append(asyncio.create_task(event_consumer(), name="event-consumer"))
     log.info(
         "[COLLECTOR_BOOT] ready leaders=%s execution=false polling=false",
         len(LEADERS),
@@ -69,6 +71,9 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+
 
 
 
