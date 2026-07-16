@@ -788,6 +788,7 @@ async def process_leader_fill(wallet: str, raw: dict[str, Any]) -> None:
 
 
     if fill.after_position == ZERO:
+        state.fills_by_coin[fill.coin] = [fill]
         state.snapshot_positions.pop(fill.coin, None)
         state.lifecycles[fill.coin] = Lifecycle(
             coin=fill.coin,
@@ -1102,3 +1103,4 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+
