@@ -82,6 +82,17 @@ async def authoritative_reconcile(
 
     authoritative_position = positions.get(fill.coin, ZERO)
 
+    if ":" in fill.coin and authoritative_position == ZERO:
+        log.warning(
+            "[AUTHORITATIVE_DEX_POSITION_UNAVAILABLE] "
+            "wallet=%s asset=%s fill_start=%s fill_after=%s",
+            wallet,
+            fill.coin,
+            fill.start_position,
+            fill.after_position,
+        )
+        return True
+
     log.warning(
         "[LIVE_POSITION_RECONCILED] wallet=%s asset=%s "
         "fill_start=%s fill_after=%s authoritative=%s",
@@ -237,3 +248,4 @@ async def process_leader_fill(
     )
 
     await persist_state(wallet, state)
+
