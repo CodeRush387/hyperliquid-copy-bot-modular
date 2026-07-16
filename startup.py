@@ -56,10 +56,12 @@ def load_startup_state() -> None:
             size_decimals[name] = int(asset.get("szDecimals", 6))
 
     for wallet, state in wallet_states.items():
-        state.snapshot_positions, state.snapshot_capital = snapshot_portfolio(wallet)
         for fill in startup_fills(wallet):
             state.fills_by_coin.setdefault(fill.coin, []).append(fill)
             state.seen_events.add(fill.event_id)
+
+        state.snapshot_positions, state.snapshot_capital = snapshot_portfolio(wallet)
+
         rebuild_wallet(state, startup=True)
 
     if FOLLOWER:
@@ -71,3 +73,4 @@ def load_startup_state() -> None:
         len(follower_state.positions),
         EXECUTION_ENABLED,
     )
+
