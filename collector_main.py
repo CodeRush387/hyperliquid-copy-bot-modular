@@ -43,6 +43,9 @@ async def main() -> None:
     await asyncio.wait_for(channel.channel_ready(), timeout=20)
     stream_stub = hypercore_grpc.StreamingStub(channel)
 
+    await asyncio.to_thread(load_startup_state)
+    await asyncio.to_thread(save_current_state)
+
     users = list(LEADERS)
     tasks = [
         asyncio.create_task(
@@ -52,8 +55,6 @@ async def main() -> None:
     ]
 
     await asyncio.wait_for(grpc_ready.wait(), timeout=10)
-    await asyncio.to_thread(load_startup_state)
-    await asyncio.to_thread(save_current_state)
 
     tasks.append(asyncio.create_task(event_consumer(), name="event-consumer"))
     log.info(
@@ -68,6 +69,7 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
 
