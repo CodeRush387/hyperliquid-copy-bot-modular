@@ -1,3 +1,4 @@
+from decimal import Decimal
 import asyncio
 from typing import Any
 
