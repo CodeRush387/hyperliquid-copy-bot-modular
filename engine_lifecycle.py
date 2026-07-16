@@ -210,7 +210,7 @@ def rebuild_wallet(
         )
         lifecycle.previous_share = previous.get(coin, ZERO)
         rebuilt[coin] = lifecycle
-        log.info(
+        log.debug(
             "[LIFECYCLE] wallet=%s asset=%s status=%s reason=%s",
             state.wallet,
             coin,
@@ -286,10 +286,10 @@ def log_race(
     decision: Decision,
     held_asset_before: str | None,
 ) -> None:
-    log.info("================ HRS WALLET RACE ================")
-    log.info("Wallet: %s", state.wallet)
-    log.info("Event Timestamp: %s", trigger.timestamp_ms)
-    log.info(
+    log.debug("================ HRS WALLET RACE ================")
+    log.debug("Wallet: %s", state.wallet)
+    log.debug("Event Timestamp: %s", trigger.timestamp_ms)
+    log.debug(
         "Trigger Fill: asset=%s kind=%s tid=%s quantity=%s price=%s",
         trigger.coin,
         trigger.kind.value,
@@ -297,16 +297,16 @@ def log_race(
         trigger.quantity,
         trigger.price,
     )
-    log.info("Execution Enabled: %s", EXECUTION_ENABLED)
-    log.info("Currently Held Asset: %s", held_asset_before or "NONE")
-    log.info("Race Ready: %s (%s)", state.race_ready, state.race_reason)
-    log.info(
+    log.debug("Execution Enabled: %s", EXECUTION_ENABLED)
+    log.debug("Currently Held Asset: %s", held_asset_before or "NONE")
+    log.debug("Race Ready: %s (%s)", state.race_ready, state.race_reason)
+    log.debug(
         "Rank | Asset | Side | Lifecycle Status | Capital | Capital Share | Share Change | "
         "Latest Capital Added | Latest Interval | Velocity | Acceleration | Eligible"
     )
     for rank, lifecycle in enumerate(ranked, start=1):
         event = lifecycle.latest_capital_event
-        log.info(
+        log.debug(
             "%s | %s | %s | %s | %s | %s%% | %spp | %s | %s | %s | %s | %s",
             rank,
             lifecycle.coin,
@@ -336,23 +336,23 @@ def log_race(
     )
     share_increasing = bool(challenger and challenger.share_change > ZERO)
     lifecycle_valid = bool(challenger and challenger.valid)
-    log.info("Challenger: %s", challenger.coin if challenger else "NONE")
-    log.info(
+    log.debug("Challenger: %s", challenger.coin if challenger else "NONE")
+    log.debug(
         "Challenger Acceleration: %s",
         fmt(challenger.acceleration, 12) if challenger else "UNAVAILABLE",
     )
-    log.info(
+    log.debug(
         "Challenger Share: %s%%",
         fmt(challenger.share * 100, 6) if challenger else "UNAVAILABLE",
     )
-    log.info("Held Asset Share: %s%%", fmt(held_share * 100, 6))
-    log.info("Allocation Gap: %s percentage points", fmt(gap, 6))
-    log.info(
+    log.debug("Held Asset Share: %s%%", fmt(held_share * 100, 6))
+    log.debug("Allocation Gap: %s percentage points", fmt(gap, 6))
+    log.debug(
         "Required Gap: %s percentage points",
         fmt(ALLOCATION_GAP_PCT, 6),
     )
-    log.info("Acceleration Positive: %s", acceleration_positive)
-    log.info("Share Increasing: %s", share_increasing)
-    log.info("Lifecycle Valid: %s", lifecycle_valid)
-    log.info("Rotation Conditions Met: %s", conditions_met)
-    log.info("Decision: %s", decision.value)
+    log.debug("Acceleration Positive: %s", acceleration_positive)
+    log.debug("Share Increasing: %s", share_increasing)
+    log.debug("Lifecycle Valid: %s", lifecycle_valid)
+    log.debug("Rotation Conditions Met: %s", conditions_met)
+    log.debug("Decision: %s", decision.value)
