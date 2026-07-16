@@ -53,10 +53,16 @@ async def process_leader_fill(wallet: str, raw: dict[str, Any]) -> None:
     prior_position = state.snapshot_positions.get(fill.coin)
 
     if prior_position is None:
-        # do not overwrite snapshot with historical fill_start
-        prior_position = fill.start_position
-    if abs(prior_position - fill.start_position) > Decimal("0.0001"):`r`n        log.warning(`r`n            "[LIVE_POSITION_GAP] wallet=%s asset=%s tracked=%s fill_start=%s",`r`n            wallet,`r`n            fill.coin,`r`n            prior_position,`r`n            fill.start_position,`r`n        )
-        prior_position = fill.start_position
+        prior_position = fill.after_position
+
+    if abs(prior_position - fill.start_position) > Decimal("0.0001"):
+        log.warning(
+            "[LIVE_POSITION_GAP] wallet=%s asset=%s tracked=%s fill_start=%s",
+            wallet,
+            fill.coin,
+            prior_position,
+            fill.start_position,
+        )
 
     state.seen_events.add(fill.event_id)
     state.fills_by_coin.setdefault(fill.coin, []).append(fill)
