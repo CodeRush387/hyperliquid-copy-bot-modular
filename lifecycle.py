@@ -214,7 +214,7 @@ def rebuild_wallet(
         )
         lifecycle.previous_share = previous.get(coin, ZERO)
         rebuilt[coin] = lifecycle
-        log.info(
+        log.debug(
             "[LIFECYCLE] wallet=%s asset=%s status=%s reason=%s",
             state.wallet,
             coin,
