@@ -50,7 +50,12 @@ async def process_leader_fill(wallet: str, raw: dict[str, Any]) -> None:
         return
 
     previous_shares = {coin: lifecycle.share for coin, lifecycle in state.lifecycles.items()}
-    prior_position = state.snapshot_positions.get(fill.coin, ZERO)
+    prior_position = state.snapshot_positions.get(fill.coin)
+
+    if prior_position is None:
+        state.snapshot_positions[fill.coin] = fill.start_position
+        prior_position = fill.start_position
+
     if prior_position != fill.start_position:
         log.error(
             "[LIVE_POSITION_MISMATCH] wallet=%s asset=%s tracked=%s fill_start=%s",
@@ -87,6 +92,8 @@ async def process_leader_fill(wallet: str, raw: dict[str, Any]) -> None:
     rebuild_wallet(state, startup=False, previous=previous_shares)
     update_projection(wallet, state)
     await asyncio.to_thread(save_current_state)
+
+
 
 
 
