@@ -12,7 +12,7 @@ from state import wallet_states
 
 # Lazy startup reconciliation:
 # one authoritative snapshot per wallet, not one snapshot per fill.
-_lazy_reconciled_wallets: set[str] = set()
+_lazy_reconciled_wallets: set[str] = set(wallet_states.keys())
 _seeded_spot_assets: set[tuple[str, str]] = set()
 
 
@@ -286,3 +286,4 @@ async def process_leader_fill(
     )
 
     await persist_state(wallet, state)
+
