@@ -82,8 +82,9 @@ async def process_leader_fill(wallet: str, raw: dict[str, Any]) -> None:
         state.snapshot_positions[fill.coin] = fill.after_position
 
     rebuild_wallet(state, startup=False, previous=previous_shares)
-    update_projection(fill, state)
+    update_projection(wallet, state)
     await asyncio.to_thread(save_current_state)
+
 
 
 
