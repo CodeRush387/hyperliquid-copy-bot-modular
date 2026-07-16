@@ -10,6 +10,12 @@ from startup import snapshot_portfolio
 from state import wallet_states
 
 
+# Lazy startup reconciliation:
+# one authoritative snapshot per wallet, not one snapshot per fill.
+_lazy_reconciled_wallets: set[str] = set()
+_seeded_spot_assets: set[tuple[str, str]] = set()
+
+
 def update_snapshot_capital(state: WalletState, fill: Fill) -> None:
     kind = fill.kind
     prior_capital = state.snapshot_capital.get(fill.coin)
@@ -60,62 +66,74 @@ async def persist_state(wallet: str, state: WalletState) -> None:
     await asyncio.to_thread(save_current_state)
 
 
-async def authoritative_reconcile(
+async def lazy_reconcile_once(
     wallet: str,
     state: WalletState,
     fill: Fill,
 ) -> bool:
     """
-    Refresh the wallet directly from Hyperliquid after a position gap.
+    Perform at most one authoritative portfolio request per wallet.
 
-    Returns True only when the incoming fill still needs to be applied.
-    Returns False when the authoritative snapshot already contains this
-    fill or a newer state.
+    Old buffered fills are skipped using the same snapshot. Once a fill's
+    start position matches the tracked position, normal sequential processing
+    resumes without another authoritative request.
     """
-    positions, capital = await asyncio.to_thread(
-        snapshot_portfolio,
-        wallet,
-    )
 
-    state.snapshot_positions = positions
-    state.snapshot_capital = capital
+    # Spot assets such as @107 are not returned by clearinghouseState.
+    # Seed them once from the first buffered fill, then process sequentially.
+    if fill.coin.startswith("@"):
+        spot_key = (wallet, fill.coin)
 
-    authoritative_position = positions.get(fill.coin, ZERO)
+        if spot_key not in _seeded_spot_assets:
+            state.snapshot_positions[fill.coin] = fill.start_position
+            _seeded_spot_assets.add(spot_key)
 
-    if (
-        authoritative_position == ZERO
-        and (
-            ":" in fill.coin
-            or fill.coin.startswith("@")
-        )
-    ):
-        log.warning(
-            "[AUTHORITATIVE_DEX_POSITION_UNAVAILABLE] "
-            "wallet=%s asset=%s fill_start=%s fill_after=%s",
+            log.info(
+                "[LAZY_SPOT_SEEDED] wallet=%s asset=%s position=%s",
+                wallet,
+                fill.coin,
+                fill.start_position,
+            )
+
+        tracked_position = state.snapshot_positions.get(fill.coin, ZERO)
+
+        if tracked_position == fill.start_position:
+            return True
+
+        if tracked_position == fill.after_position:
+            state.seen_events.add(fill.event_id)
+            log.info(
+                "[BUFFERED_FILL_ALREADY_REFLECTED] "
+                "wallet=%s asset=%s tid=%s",
+                wallet,
+                fill.coin,
+                fill.tid or "UNAVAILABLE",
+            )
+            return False
+
+        state.seen_events.add(fill.event_id)
+        log.info(
+            "[STALE_BUFFERED_FILL_SKIPPED] wallet=%s asset=%s "
+            "fill_start=%s fill_after=%s tracked=%s tid=%s",
             wallet,
             fill.coin,
             fill.start_position,
             fill.after_position,
+            tracked_position,
+            fill.tid or "UNAVAILABLE",
         )
-        return True
+        return False
 
-    log.warning(
-        "[LIVE_POSITION_RECONCILED] wallet=%s asset=%s "
-        "fill_start=%s fill_after=%s authoritative=%s",
-        wallet,
-        fill.coin,
-        fill.start_position,
-        fill.after_position,
-        authoritative_position,
-    )
+    # Only the first gap for this wallet performs the expensive all-DEX pass.
+    if wallet not in _lazy_reconciled_wallets:
+        positions, capital = await asyncio.to_thread(
+            snapshot_portfolio,
+            wallet,
+        )
 
-    # الـsnapshot لم يستلم هذا الحدث بعد؛ طبّق الحدث الآن.
-    if authoritative_position == fill.start_position:
-        return True
-
-    # الـsnapshot يحتوي هذا الحدث بالفعل.
-    if authoritative_position == fill.after_position:
-        state.seen_events.add(fill.event_id)
+        state.snapshot_positions = positions
+        state.snapshot_capital = capital
+        _lazy_reconciled_wallets.add(wallet)
 
         rebuild_wallet(
             state,
@@ -128,6 +146,33 @@ async def authoritative_reconcile(
 
         await persist_state(wallet, state)
 
+        log.warning(
+            "[LAZY_WALLET_RECONCILED] wallet=%s "
+            "positions=%s triggering_asset=%s",
+            wallet,
+            len(positions),
+            fill.coin,
+        )
+
+    authoritative_position = state.snapshot_positions.get(
+        fill.coin,
+        ZERO,
+    )
+
+    # Snapshot is immediately before this fill: apply it.
+    if authoritative_position == fill.start_position:
+        log.info(
+            "[BUFFER_CAUGHT_UP] wallet=%s asset=%s position=%s",
+            wallet,
+            fill.coin,
+            authoritative_position,
+        )
+        return True
+
+    # Snapshot already includes this exact fill.
+    if authoritative_position == fill.after_position:
+        state.seen_events.add(fill.event_id)
+
         log.info(
             "[BUFFERED_FILL_ALREADY_REFLECTED] "
             "wallet=%s asset=%s tid=%s",
@@ -137,19 +182,8 @@ async def authoritative_reconcile(
         )
         return False
 
-    # الـsnapshot أصبح أحدث من الحدث؛ لا نرجّع الحالة للخلف.
+    # Snapshot is newer than this buffered fill. Skip without another API call.
     state.seen_events.add(fill.event_id)
-
-    rebuild_wallet(
-        state,
-        startup=False,
-        previous={
-            coin: lifecycle.share
-            for coin, lifecycle in state.lifecycles.items()
-        },
-    )
-
-    await persist_state(wallet, state)
 
     log.info(
         "[STALE_BUFFERED_FILL_SKIPPED] wallet=%s asset=%s "
@@ -202,7 +236,7 @@ async def process_leader_fill(
             fill.start_position,
         )
 
-        should_apply = await authoritative_reconcile(
+        should_apply = await lazy_reconcile_once(
             wallet,
             state,
             fill,
@@ -243,9 +277,7 @@ async def process_leader_fill(
             LifecycleStatus.CLOSED.value,
         )
     else:
-        state.snapshot_positions[fill.coin] = (
-            fill.after_position
-        )
+        state.snapshot_positions[fill.coin] = fill.after_position
 
     rebuild_wallet(
         state,
@@ -254,5 +286,3 @@ async def process_leader_fill(
     )
 
     await persist_state(wallet, state)
-
-
